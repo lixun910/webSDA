@@ -1,0 +1,116 @@
+<html>
+<meta charset="utf-8">
+<title></title>
+<style>
+path {
+  fill: #ccc;
+  stroke: #000;
+  stroke-linejoin: round;
+}
+
+.boundary {
+  pointer-events: none;
+  fill: none;
+  stroke: #fff;
+  stroke-width: .5px;
+  stroke-linejoin: round;
+}
+.selected {
+  fill: yellow;
+}
+.unselected {
+  fill: #ccc;
+}
+
+.neighbor {
+  fill: orange;
+}
+
+</style>
+<script src="jquery-1.10.1.min.js"></script>
+<script src="d3.v3.min.js"></script>
+<script src="topojson.v1.min.js"></script>
+
+<script>
+var districts;
+var neighbors;
+var district;
+
+////////////////////////////////////////////////////////////////
+// code for brushing and linking
+////////////////////////////////////////////////////////////////
+$(document).ready(function() {
+  localStorage.clear();
+  $(window).bind('storage', function(e) {
+    var select_ids = eval("["+localStorage.getItem('select_ids')+"]");
+    console.log(select_ids);
+    d3.selectAll("path")
+      .attr("class", "unselected");
+    d3.selectAll("path")
+      .each(function(d,i){ 
+      if (jQuery.inArray(d.id, select_ids) > -1) {
+      //if (d.id in select_ids) {
+        d.neighbors = d3.selectAll(neighbors[i].map(function(j) {return district[0][j];} )); 
+        d.neighbors.classed("neighbor", true);
+        d3.select(this).attr("class", "selected");
+       }
+    })
+  });
+});
+</script>
+
+
+<body>
+<script type="text/javascript">
+////////////////////////////////////////////////////////////////
+// code to displaying map with neighbor highlighting
+////////////////////////////////////////////////////////////////
+//Width and height
+var w = 960;
+var h = 500;
+var path = d3.geo.path();
+
+//Create SVG element
+var svg = d3.select("body")
+  .append("svg")
+  .attr("width", w)
+  .attr("height", h);
+
+//Load in GeoJSON data, the URL will be a placeholder that PySAL call will
+//replace it with real JSON file.
+d3.json("http://127.0.0.1:8000/us.json", function(error,json) {
+  districts = json.objects.districts;
+  neighbors = topojson.neighbors(districts.geometries);
+  district  = svg.append("g")
+                      .attr("class", "districts")
+                      .selectAll("paht")
+                      .data(topojson.feature(json, districts).features)
+                      .enter().append("path")
+                      .attr("polyid", function(d){return d.id;})
+                      .attr("d", path);
+              
+  district.append("title")
+    .text(function(d){return d.id;})
+  district
+    .each(function(d,i){ 
+      d.neighbors = d3.selectAll(neighbors[i].map(function(j) {return district[0][j];} )); 
+    })
+    .on("mouseover", function(d){
+      d3.selectAll("path").attr("class", "unselected");
+      d.neighbors.classed("neighbor", true);
+      d3.select(this).attr("class", "selected"); 
+      localStorage.setItem('isupdated', 1);
+      localStorage.setItem('select_ids', [d.id]);
+    })
+    .on("mouseout", function(d){
+      d.neighbors.classed("neighbor", false);
+      d3.select(this).attr("class", "unselected"); 
+      localStorage.removeItem('isupdated');
+    });
+    
+});
+
+//Using Jquery.twFile to write current selection back to local file
+//the pysal will read the local file to get current selection
+</script>
+</body>

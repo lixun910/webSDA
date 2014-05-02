@@ -1,0 +1,29 @@
+<!doctype html>
+<title>Send keys using websocket and echo the response</title>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7.0/jquery.min.js">
+</script>
+<script>
+// send keys to websocket and echo the response
+$(document).ready(function() {
+    // create websocket
+    if (! ("WebSocket" in window)) WebSocket = MozWebSocket; // firefox
+    var socket = new WebSocket("ws://localhost:8076");
+ 
+    // open the socket
+    socket.onopen = function(event) {
+    socket.send('connected');
+ 
+    // show server response
+    socket.onmessage = function(e) {
+        $("#output").text(e.data);
+    }
+ 
+    // for each typed key send #entry's text to server
+    $("#entry").keyup(function (e) {
+        socket.send($("#entry").attr("value"));
+    });
+    }
+});
+</script>
+<input type=text id=entry value="type something">
+<div id=output>Here you should see the typed text in UPPER case</div>
