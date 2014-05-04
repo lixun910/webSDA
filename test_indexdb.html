@@ -1,0 +1,22 @@
+<html>
+<script src="jquery.min.js"></script>
+<script src="indexeddb.js"></script>
+<script>
+
+$(document).ready(function() {
+$("#testButton").click(function(){
+    console.log('11');
+fileid = 1;
+filename = "nat.json";
+fileurl = "http://example.come/nat.json";
+filecontent = "{1:2,2:{4,5}}";
+//addFile(fileid, filename, fileurl, filecontent);
+//displayFileList();
+queryFile('ss');
+});
+
+});
+</script>
+<body>
+<div id="testButton">Test</div>
+</body>

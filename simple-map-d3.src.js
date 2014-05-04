@@ -35,7 +35,7 @@ function SimpleMapD3(o) {
       }
       return output;
     },
-    projection: 'albersUsa',
+    projection: 'none',
     legendFormatter: d3.format(','),
     legendOn: true,
     legendTitle: 'Legend',
@@ -167,8 +167,25 @@ function SimpleMapD3(o) {
     if (smd.data === void 0) {
       smd.data = data;
     }
-    
-    smd.topo();
+   
+    if (smd.options.extent == undefined ) {
+        // read extent from data
+      json.features.forEach(function(feat,i) {
+            feat.geometry.coordinates.forEach(function(coords,j) {
+                coords.forEach(function(xy,k){
+                    x = xy[0], y = xy[1];
+                    if (x > maxX) {maxX = x;}
+                    if (x < minX) {minX = x;}
+                    if (y > maxY) {maxY = y;}
+                    if (y < minY) {minY = y;}
+                });
+            });
+        });
+
+
+    }
+
+    //smd.topo();
     
     // Call data loaded event
     smd.events.dataLoaded(smd);
@@ -190,7 +207,8 @@ function SimpleMapD3(o) {
     
     return smd;
   };
-  
+ 
+
   // Handle topojson
   smd.topo = function() {
     var o = smd.options.topojsonObject;
@@ -251,34 +269,36 @@ function SimpleMapD3(o) {
     return smd;
   };
   
-  // Create projection
+  // Create GeoDa style projection
   smd.projection = function() {
-    var projFunc = smd.options.projection;
-  
-    if (typeof projFunc == 'undefined' ||
-      typeof d3.geo[projFunc] != 'function') {
-      projFunc = 'albersUsa';
+
+    var xyratio = (maxX-minX)/(maxY-minY);
+        var offsetW = 0.0;
+        var offsetH = 0.0;
+        if (w/h > xyratio) {
+            // canvas is too wide
+            offsetW = (w - h*xyratio)/2.0;
+        } else if (w/h < xyratio) {
+            // canvas is too tall
+            offsetH = (h - w/xyratio)/2.0;
+        }
+         
+    var scaleX = d3.scale.linear()
+            .domain([minX,maxX])
+            .range([0, w-offsetW*2]);
+        scaleY = d3.scale.linear()
+            .domain([minY, maxY])
+            .range([h-offsetH*2,0]);
+
+    function matrix(a, b, c, d, tx, ty) {
+            return d3.geo.transform({
+                point: function(x, y) { 
+                    this.stream.point(scaleX(x)+offsetW, scaleY(y)+offsetH); 
+                }});
     }
-    
-    smd.centroid = d3.geo.centroid(smd.data);
-    smd.projection = d3.geo[projFunc]()
-      .scale(1000)
-      .translate([smd.width / 2, smd.height / 2]);
-    
-    // Center if available
-    if (typeof smd.projection.center === 'function') {
-      smd.projection.center(smd.centroid);
-    }
-    
-    // Rotate if needed
-    if (typeof smd.options.rotation != 'undefined' &&
-      smd.options.rotation.length > 0 &&
-      typeof smd.projection.rotate === 'function') {
-      smd.projection.rotate(smd.options.rotation);
-    }
-  
+ 
     smd.projPath = d3.geo.path()
-      .projection(smd.projection);
+      .projection(matrix(-1,0,0,1,0,0));
       
     return smd;
   };

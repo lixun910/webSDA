@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title></title>
+	<script type="text/javascript" src="zip/zip.js"></script>
+	<script type="text/javascript" src="zip/deflate.js"></script>
+
+    <script>
+    window.requestFileSystem = window.requestFileSystem || window.webkitRequestFileSystem;
+    var fs = null;
+     
+	var resourceURL = "nat.json";
+	var resourceDIRLOC = "resources";
+	var resourceDIR;
+
+	function errorHandler(e) {
+	  var msg = '';
+	  switch (e.code) {
+	    case FileError.QUOTA_EXCEEDED_ERR:
+	      msg = 'QUOTA_EXCEEDED_ERR';
+	      break;
+	    case FileError.NOT_FOUND_ERR:
+	      msg = 'NOT_FOUND_ERR';
+	      break;
+	    case FileError.SECURITY_ERR:
+	      msg = 'SECURITY_ERR';
+	      break;
+	    case FileError.INVALID_MODIFICATION_ERR:
+	      msg = 'INVALID_MODIFICATION_ERR';
+	      break;
+	    case FileError.INVALID_STATE_ERR:
+	      msg = 'INVALID_STATE_ERR';
+	      break;
+	    default:
+	      msg = 'Unknown Error';
+	      break;
+	  };
+
+	  console.log('Error: ' + msg);
+	}
+
+
+	function initFS() {
+
+        window.requestFileSystem(window.TEMPORARY, 20*1024*1024, function(filesystem) {
+            fs = filesystem;
+            var dirReader = fs.root.createReader();
+            dirReader.readEntries(function(entries) {
+                if (!entries.length) {
+                    console.log('Filesystem is empty.');
+                } 
+                for (var i = 0, entry; entry = entries[i]; ++i) {
+                    console.log("Is directory?", entry.isDirectory, "Name:", entry.name);
+                }
+            });
+        }, errorHandler);
+    }
+
+    </script>
+</head>
+
+<body onload="initFS()">
+<button id="testButton">Test</button>
+
+<div id="images"></div>
+
+</body>
+</html>

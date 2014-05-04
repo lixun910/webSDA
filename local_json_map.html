@@ -28,11 +28,7 @@ path {
 </style>
 <script src="jquery.min.js"></script>
 <script src="d3.v3.min.js"></script>
-<script src="inflate.js"></script>
-<script src="zip/zip.js"></script>
-<script src="indexeddb.js"></script>
 <script src="utils.js"></script>
-<script src="jsonmap.js"></script>
 <script type="text/javascript" src="https://www.dropbox.com/static/api/2/dropins.js" id="dropboxjs" data-app-key="50dk6qp6nc2fcxs"></script>
 <script type="text/javascript">
  	
@@ -43,26 +39,20 @@ var data; // global for testing
 var w = 900;
 var h = 600;
 function ShowJsonMap(jsonFilePath) {
+    //Create SVG element
+    var svg = d3.select("body")
+        .append("svg")
+        .attr("width", w)
+        .attr("height", h)
+        .attr("class", "canvas");
+
 
     //Load in GeoJSON data
     var createJsonMap = function(json) {
+        console.log(json);
         if (localStorage.getItem(jsonFilePath) == null) {
-            localStorage.setItem(jsonFilePath, 1);
-            // store the content to indexedDB
-            var fileurl = jsonFilePath;
-            var filename = getFileName(fileurl);
-            var fileid = filename;
-            var filecontent = JSON.stringify(json);
-            addFile(fileid, filename, fileurl, filecontent);
+            localStorage.setItem(jsonFilePath, JSON.stringify(json));
         }
-
-        //Create SVG element
-        var svg = d3.select("body")
-            .append("svg")
-            .attr("width", w)
-            .attr("height", h)
-            .attr("class", "canvas");
-
 
         var minX = Number.POSITIVE_INFINITY,
             maxX = Number.NEGATIVE_INFINITY,
@@ -131,32 +121,13 @@ function ShowJsonMap(jsonFilePath) {
                 socket.send(JSON.stringify(msg));
             });
     };
-    //deleteFile(4);
-    if (localStorage.getItem(jsonFilePath) == null) {
-        console.log("load from raw data");
-        var suffix = getSuffix(jsonFilePath);
-        if (suffix === "json" || suffix === "geojson") {
-            d3.json(jsonFilePath, createJsonMap);
-        } else if (suffix === "zip") {
-            FetchZipResource(jsonFilePath, function(data){
-                jsonContent = JSON.parse(data);
-                createJsonMap(jsonContent);
-            });
-        }
 
-    } else {
-        console.log("load from cache:");
-        queryFile(jsonFilePath, function(e) {
-            if (e.target.result) {
-                console.log(e.target.result);
-                jsonContent = e.target.result.filecontent;
-                jsonContent = jQuery.parseJSON(jsonContent);
-                createJsonMap(jsonContent);
-            } else {
-                console.log("load from cache error.");
-            }
-        });
-    }
+    console.log("load from raw data");
+    d3.json(jsonFilePath, createJsonMap);
+        //console.log("load from cache", json);
+        //jsonContent = JSON.localStorage.getItem(jsonFilePath);
+        //json = JSON.parse(jsonContent);
+        //createJsonMap(json);
 } // end function ShowJsonMap()
 
 
@@ -175,6 +146,110 @@ $(document).ready(function() {
     var pageid = guid(); 
     
     //////////////////////////////////////////////////////////////
+    // cache filesystem 
+    //////////////////////////////////////////////////////////////
+    var resourceURL;
+    var resourceDIRLOC = "resources";
+    var fileSystem;
+    var resourceDIR;
+
+    function errorHandler(e) {
+      var msg = '';
+  console.dir(e);
+      switch (e.code) {
+	case FileError.QUOTA_EXCEEDED_ERR:
+	  msg = 'QUOTA_EXCEEDED_ERR';
+	  break;
+	case FileError.NOT_FOUND_ERR:
+	  msg = 'NOT_FOUND_ERR';
+	  break;
+	case FileError.SECURITY_ERR:
+	  msg = 'SECURITY_ERR';
+	  break;
+	case FileError.INVALID_MODIFICATION_ERR:
+	  msg = 'INVALID_MODIFICATION_ERR';
+	  break;
+	case FileError.INVALID_STATE_ERR:
+	  msg = 'INVALID_STATE_ERR';
+	  break;
+	default:
+	  msg = 'Unknown Error';
+	  break;
+      };
+
+      console.log('Error: ' + msg);
+    }
+
+    function fetchResource() {
+        console.log(resourceURL);
+	    var xhr = new XMLHttpRequest();
+	    xhr.responseType="text/plain";
+	    xhr.open("GET", resourceURL,true);
+	    xhr.onload = function(e) {
+		    if(this.status == 200) {
+			    var content = this.response;
+			    resourceDIR.getFile("nat.json", {create:true}, function(file) {
+                    file.createWriter(function(fileWriter) {
+                        fileWriter.onwriteend = function(e) {
+                            console.log('Write completed.');
+
+                resourceDIR.getFile("nat.json", {create:false}, function(fileEntry) {
+                    // Get a File object representing the file,
+                    // then use FileReader to read its contents.
+                    fileEntry.file(function(file) {
+                        var reader = new FileReader();
+
+                        reader.onloadend = function(e) {
+                            console.log(this.result);
+
+                        };
+
+                        reader.readAsText(file);
+                    }, errorHandler);
+                });
+
+
+                          };
+
+                          fileWriter.onerror = function(e) {
+                            console.log('Write failed: ' + e.toString());
+                          };
+                        var blob = new Blob([content], {type: "text/plain"});
+                        fileWriter.write(blob);
+                    });
+				    console.log("Yes, I opened "+file.fullPath);
+                    localStorage[file] = 1
+	                resourceDIR.getFile("nat.json", {create:false}, function(file) {
+                        console.log("In success handler for "+file.name + " " + file.toURL());
+          		        ShowJsonMap(file.toURL());
+		            });
+			    });
+
+		    }
+	    }
+	    xhr.send();
+    }
+
+    function localCache(url) {
+	    resourceURL = url;
+         if(!window.webkitStorageInfo) return;
+
+	    window.webkitStorageInfo.requestQuota(window.PERSISTENT, 100*1024*1024, function(grantedBytes) {
+		    console.log("I was granted "+grantedBytes+" bytes.");
+		    window.webkitRequestFileSystem(window.PERSISTENT, grantedBytes, onInitFs, errorHandler);
+	    }, errorHandler);
+
+	    function onInitFs(fs) {
+		    fileSystem = fs;
+
+		    fileSystem.root.getDirectory(fs.root.fullPath + '/' + resourceDIRLOC, {create:true}, function(dir) {
+			    resourceDIR = dir;
+				fetchResource();
+		    },errorHandler);
+	    }
+    }
+
+    //////////////////////////////////////////////////////////////
     // WebSocket Server Communications
     //////////////////////////////////////////////////////////////
     // create websocket
@@ -189,19 +264,19 @@ $(document).ready(function() {
         socket.onmessage = function(e) {
             // handle different messages
             try {
-                data = JSON.parse(e.data);
-                if ( 'SELECTED' in data ) {
-                    select_ids = data['SELECTED'];
-                    d3.selectAll("path")
-                        .attr("class", "unselected");
-                    d3.selectAll("path")
-                        .each(function(d,i){ 
+            data = JSON.parse(e.data);
+            if ( 'SELECTED' in data ) {
+                select_ids = data['SELECTED'];
+                d3.selectAll("path")
+                    .attr("class", "unselected");
+                d3.selectAll("path")
+                    .each(function(d,i){ 
                         if (jQuery.inArray(d.properties.FIPS, select_ids) > -1) {
                             //if (d.id in select_ids) {
                             d3.select(this).attr("class", "selected");
                         }
                     });
-                }
+            }
             } catch (err) {
                 console.error("Parsing error:", err);            
             }
@@ -216,8 +291,12 @@ $(document).ready(function() {
         // Required. Called when a user selects an item in the Chooser.
         success: function(files) {
             //alert("Here's the file link: " + files[0].link)
-            var fileLink = files[0].link;
-            ShowJsonMap(fileLink);
+            //ShowJsonMap(files[0].link);
+    		localCache(files[0].link);
+	       //resourceDIR.getFile("nat.json", {create:false}, function(file) {
+           //         console.log("In success handler for "+file.name + " " + file.toURL());
+		   //     ShowJsonMap(file.toURL());
+		   //});
         },
 
         // Optional. Called when the user closes the dialog without selecting a file
@@ -239,7 +318,7 @@ $(document).ready(function() {
         // only be able to select files with these extensions. You may also specify
         // file types, such as "video" or "images" in the list. For more information,
         // see File types below. By default, all extensions are allowed.
-        extensions: ['.json', '.geojson', '.zip'],
+        extensions: ['.json', '.geojson'],
     };
 
     var button = Dropbox.createChooseButton(dropboxOptions);
@@ -258,39 +337,5 @@ $(document).ready(function() {
 <body>
 <div id="dropboxCont"></div>
 <div id="progressCont">Loading data from Dropbox ...</div>
-
-<div id="drop_zone">Drop files here</div>
-<output id="list"></output>
-
-<script>
-  function handleFileSelect(evt) {
-    evt.stopPropagation();
-    evt.preventDefault();
-
-    var files = evt.dataTransfer.files; // FileList object.
-
-    // files is a FileList of File objects. List some properties.
-    var output = [];
-    for (var i = 0, f; f = files[i]; i++) {
-      output.push('<li><strong>', escape(f.name), '</strong> (', f.type || 'n/a', ') - ',
-                  f.size, ' bytes, last modified: ',
-                  f.lastModifiedDate ? f.lastModifiedDate.toLocaleDateString() : 'n/a',
-                  '</li>');
-    }
-    document.getElementById('list').innerHTML = '<ul>' + output.join('') + '</ul>';
-  }
-
-  function handleDragOver(evt) {
-    evt.stopPropagation();
-    evt.preventDefault();
-    evt.dataTransfer.dropEffect = 'copy'; // Explicitly show this is a copy.
-  }
-
-  // Setup the dnd listeners.
-  var dropZone = document.getElementById('drop_zone');
-  dropZone.addEventListener('dragover', handleDragOver, false);
-  dropZone.addEventListener('drop', handleFileSelect, false);
-</script>
-
 </body>
 </html>
