@@ -23,6 +23,7 @@
       // db = req.result;
       db = this.result;
       console.log("openDb DONE");
+      //deleteFile(2);
     };
     req.onerror = function (evt) {
       console.error("openDb:", evt.target.errorCode);

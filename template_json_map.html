@@ -131,7 +131,6 @@ function ShowJsonMap(jsonFilePath) {
                 socket.send(JSON.stringify(msg));
             });
     };
-    //deleteFile(4);
     if (localStorage.getItem(jsonFilePath) == null) {
         console.log("load from raw data");
         var suffix = getSuffix(jsonFilePath);
@@ -168,10 +167,11 @@ var db;
 ///////////////////////////////////////////////////////////////
 $(document).ready(function() {
 
-    //var jsonname = getParameterByName("json");
-    //if (!jsonname) {
-    //    return;
-    //}
+    var jsonurl = getParameterByName("json");
+    console.log(jsonurl);
+    if (!jsonurl) {
+        return;
+    }
     var pageid = guid(); 
     
     //////////////////////////////////////////////////////////////
@@ -206,49 +206,13 @@ $(document).ready(function() {
                 console.error("Parsing error:", err);            
             }
         }
+
+        
     }
-
-    //////////////////////////////////////////////////////////////
-    // Dropbox Plugin
-    //////////////////////////////////////////////////////////////
-    var dropboxOptions = {
-
-        // Required. Called when a user selects an item in the Chooser.
-        success: function(files) {
-            //alert("Here's the file link: " + files[0].link)
-            var fileLink = files[0].link;
-            ShowJsonMap(fileLink);
-        },
-
-        // Optional. Called when the user closes the dialog without selecting a file
-        // and does not include any parameters.
-        cancel: function() {
-            $('#progressCont').hide();
-        },
-
-        // Optional. "preview" (default) is a preview link to the document for sharing,
-        // "direct" is an expiring link to download the contents of the file. For more
-        // information about link types, see Link types below.
-        linkType: "direct", // or "direct"
-
-        // Optional. A value of false (default) limits selection to a single file, while
-        // true enables multiple file selection.
-        multiselect: false, // or true
-
-        // Optional. This is a list of file extensions. If specified, the user will
-        // only be able to select files with these extensions. You may also specify
-        // file types, such as "video" or "images" in the list. For more information,
-        // see File types below. By default, all extensions are allowed.
-        extensions: ['.json', '.geojson', '.zip'],
-    };
-
-    var button = Dropbox.createChooseButton(dropboxOptions);
-    document.getElementById("dropboxCont").appendChild(button);
-
-    $('#progressCont').hide();
-    $('#dropboxCont').click(function() {
-        $('#progressCont').show();
-    });
+     
+    setTimeout(function(){
+        ShowJsonMap(jsonurl);
+    }, 100);
 });
 
 
@@ -256,41 +220,5 @@ $(document).ready(function() {
 </script>
 </head>
 <body>
-<div id="dropboxCont"></div>
-<div id="progressCont">Loading data from Dropbox ...</div>
-
-<div id="drop_zone">Drop files here</div>
-<output id="list"></output>
-
-<script>
-  function handleFileSelect(evt) {
-    evt.stopPropagation();
-    evt.preventDefault();
-
-    var files = evt.dataTransfer.files; // FileList object.
-
-    // files is a FileList of File objects. List some properties.
-    var output = [];
-    for (var i = 0, f; f = files[i]; i++) {
-      output.push('<li><strong>', escape(f.name), '</strong> (', f.type || 'n/a', ') - ',
-                  f.size, ' bytes, last modified: ',
-                  f.lastModifiedDate ? f.lastModifiedDate.toLocaleDateString() : 'n/a',
-                  '</li>');
-    }
-    document.getElementById('list').innerHTML = '<ul>' + output.join('') + '</ul>';
-  }
-
-  function handleDragOver(evt) {
-    evt.stopPropagation();
-    evt.preventDefault();
-    evt.dataTransfer.dropEffect = 'copy'; // Explicitly show this is a copy.
-  }
-
-  // Setup the dnd listeners.
-  var dropZone = document.getElementById('drop_zone');
-  dropZone.addEventListener('dragover', handleDragOver, false);
-  dropZone.addEventListener('drop', handleFileSelect, false);
-</script>
-
 </body>
 </html>
